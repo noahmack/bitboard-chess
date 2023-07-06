@@ -62,8 +62,10 @@ public class Board {
 		// to determine the number of ranks, we can subtract the second square's rank from the first square's rank
 		
 		if(move.charAt(0) == move.charAt(2)) {	// rankwise move
-			// now, we need to determine what piece is moving. To do this, we can find the index of the starting square
-			// and bitwise and it with each bitboard until the result is not equal to 0.
+			// another method will make sure that the move is legal before it is passed to this method, so we
+			// just have to manipulate the bitboards with the given move
+			
+			// first we need to find out which piece type is moving
 			
 			// so, lets start by finding the index of the starting square. We can do this by multiplying the letter
 			// index alphabet value by the rank number:
@@ -74,11 +76,36 @@ public class Board {
 			
 			long startingPiece = 1 << startIndex;
 			
+			// now to find the piece type we can loop through the bitboards and see which type it is:
+			
+			Long startingPieceBitboard = 0L;
+			
+			for(Long bitboard : bitboards) {
+				if((bitboard & startingPiece) != 0) {
+					startingPieceBitboard = bitboard;
+					break;
+				}
+			}
+			
 			// now, we can create an ending piece long by shifting the right amount of bits for the given move
 			
 			int deltaRank = move.charAt(3) - move.charAt(1);
 			
 			long endingPiece = deltaRank >= 0 ? startingPiece << (8 * deltaRank) : startingPiece >> (-8 * deltaRank);
+			
+			// next, we should make a move bitboard that can be used to execute the move:
+			
+			long moveBitboard = startingPiece | endingPiece;
+			startingPieceBitboard ^= moveBitboard;
+			
+			/*
+			 * example: startingPieceBitboard = 0b0000100
+			 * 					 moveBitboard = 0b0100100
+			 * 					   XOR result = 0b0100000
+			 */
+			
+			//TODO: detect if move is a capture and update corresponding bitboard
+			//TODO: update allPieces, whitePieces, and blackPieces
 			
 			
 		}
@@ -162,6 +189,10 @@ public class Board {
 		}
 		System.out.println(Long.toBinaryString((long)endingPiece));
 		System.out.println(move.charAt(3)-move.charAt(1));
+		
+		Long test = 5L;
+		
+		System.out.println();
 		
 		// end of main
 	}
