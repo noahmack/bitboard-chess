@@ -5,6 +5,26 @@ import java.util.List;
 
 public class Board {
 
+//		-------------------------------------------------------------------------------------------------------
+//	  	|										USEFUL FIGURES:												  |
+//	 	-------------------------------------------------------------------------------------------------------
+	 
+	/*
+	 * 		Board as indices of bitboard:
+	 * 
+	 * 		8.	63	62	61	60	59	58	57	56
+	 * 		7.	55	54	53	52	51	50	49	48
+	 * 		6.	47	46	45	44	43	42	41	40
+	 * 		5.	39	38	37	36	35	34	33	32
+	 * 		4.	31	30	29	28	27	26	25	24
+	 * 		3.	23	22	21	20	19	18	17	16
+	 * 		2.	15	14	13	12	11	10	9	8
+	 * 		1.	7	6	5	4	3	2	1	0
+	 * 			a	b	c	d	e	f	g	h
+	 * 
+	 */
+	
+	
 	private static long whitePawns = 0x000000000000FF00L;
 	private static long whiteRooks = 0x0000000000000081L;
 	private static long whiteKnights = 0x0000000000000042L;
@@ -45,6 +65,10 @@ public class Board {
 			// now, we need to determine what piece is moving. To do this, we can find the index of the starting square
 			// and bitwise and it with each bitboard until the result is not equal to 0.
 			
+			// so, lets start by finding the index of the starting square. We can do this by multiplying the letter
+			// index alphabet value by the rank number:
+			
+			int startIndex = Integer.parseInt("" + move.charAt(1)) * 8 - (move.charAt(0) - 97);
 			
 			
 		}
@@ -106,6 +130,15 @@ public class Board {
 			System.out.println();
 		}
 
+		String move = "f7e4";
+		
+		int startIndex = Integer.parseInt("" + move.charAt(1)) * 8 - (move.charAt(0) - 97) - 1;
+		System.out.println(startIndex);
+		
+		
+		
+		
+		// end of main
 	}
 
 
