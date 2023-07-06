@@ -70,6 +70,16 @@ public class Board {
 			
 			int startIndex = Integer.parseInt("" + move.charAt(1)) * 8 - (move.charAt(0) - 97);
 			
+			// now that we have our starting index, let's create a long with a 1 at that index
+			
+			long startingPiece = 1 << startIndex;
+			
+			// now, we can create an ending piece long by shifting the right amount of bits for the given move
+			
+			int deltaRank = move.charAt(3) - move.charAt(1);
+			
+			long endingPiece = deltaRank >= 0 ? startingPiece << (8 * deltaRank) : startingPiece >> (-8 * deltaRank);
+			
 			
 		}
 		
@@ -131,12 +141,27 @@ public class Board {
 		}
 
 		String move = "f7e4";
-		
+
 		int startIndex = Integer.parseInt("" + move.charAt(1)) * 8 - (move.charAt(0) - 97) - 1;
 		System.out.println(startIndex);
+
+
+		long startingPiece = 1L << startIndex;
+		for(int i = 0; i < Long.numberOfLeadingZeros((long)startingPiece); i++) {
+			System.out.print('0');
+		}
+		System.out.println(Long.toBinaryString((long)startingPiece));
+		System.out.println();
 		
+		int deltaRank = move.charAt(3) - move.charAt(1);
 		
-		
+		long endingPiece = deltaRank >= 0 ? startingPiece << (8 * deltaRank) : startingPiece >> (-8 * deltaRank);
+
+		for(int i = 0; i < Long.numberOfLeadingZeros((long)endingPiece); i++) {
+			System.out.print('0');
+		}
+		System.out.println(Long.toBinaryString((long)endingPiece));
+		System.out.println(move.charAt(3)-move.charAt(1));
 		
 		// end of main
 	}
