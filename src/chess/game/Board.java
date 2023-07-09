@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
+import chess.graphics.PrintGraphics;
+
 public class Board {
 
 //		-------------------------------------------------------------------------------------------------------
@@ -35,25 +37,67 @@ public class Board {
 	 * 	holds a long value as a field which can be modified and updated within the same object
 	 * 	reference.
 	 */
-	private static AtomicLong whitePawns = new AtomicLong(0x000000000000FF00L);
-	private static AtomicLong whiteRooks = new AtomicLong(0x0000000000000081L);
-	private static AtomicLong whiteKnights = new AtomicLong(0x0000000000000042L);
-	private static AtomicLong whiteBishops = new AtomicLong(0x0000000000000024L);
-	private static AtomicLong whiteQueens = new AtomicLong(0x0000000000000010L);
-	private static AtomicLong whiteKing = new AtomicLong(0x0000000000000008L);
+	private AtomicLong whitePawns;
+	private AtomicLong whiteRooks;
+	private AtomicLong whiteKnights;
+	private AtomicLong whiteBishops;
+	private AtomicLong whiteQueens;
+	private AtomicLong whiteKing;
 	
-	private static AtomicLong blackPawns = new AtomicLong(0x00FF000000000000L);
-	private static AtomicLong blackRooks = new AtomicLong(0x8100000000000000L);
-	private static AtomicLong blackKnights = new AtomicLong(0x4200000000000000L);
-	private static AtomicLong blackBishops = new AtomicLong(0x2400000000000000L);
-	private static AtomicLong blackQueens = new AtomicLong(0x1000000000000000L);
-	private static AtomicLong blackKing = new AtomicLong(0x0800000000000000L);
+	private AtomicLong blackPawns;
+	private AtomicLong blackRooks;
+	private AtomicLong blackKnights;
+	private AtomicLong blackBishops;
+	private AtomicLong blackQueens;
+	private AtomicLong blackKing;
 	
-	private static AtomicLong whitePieces = new AtomicLong(whitePawns.get() | whiteRooks.get() | whiteKnights.get() | whiteBishops.get() | whiteQueens.get() | whiteKing.get());
-	private static AtomicLong blackPieces = new AtomicLong(blackPawns.get() | blackRooks.get() | blackKnights.get() | blackBishops.get() | blackQueens.get() | blackKing.get());
-	private static AtomicLong allPieces = new AtomicLong(whitePieces.get() | blackPieces.get());
+	private AtomicLong whitePieces;
+	private AtomicLong blackPieces;
+	private AtomicLong allPieces;
 	
-	public static void move(String move, List<AtomicLong> bitboards) {
+	private List<AtomicLong> bitboards;
+	
+	// default constructor: generates a board with standard starting position
+	public Board() {
+		whitePawns = new AtomicLong(0x000000000000FF00L);
+		whiteRooks = new AtomicLong(0x0000000000000081L);
+		whiteKnights = new AtomicLong(0x0000000000000042L);
+		whiteBishops = new AtomicLong(0x0000000000000024L);
+		whiteQueens = new AtomicLong(0x0000000000000010L);
+		whiteKing = new AtomicLong(0x0000000000000008L);
+		
+		blackPawns = new AtomicLong(0x00FF000000000000L);
+		blackRooks = new AtomicLong(0x8100000000000000L);
+		blackKnights = new AtomicLong(0x4200000000000000L);
+		blackBishops = new AtomicLong(0x2400000000000000L);
+		blackQueens = new AtomicLong(0x1000000000000000L);
+		blackKing = new AtomicLong(0x0800000000000000L);
+		
+		whitePieces = new AtomicLong(whitePawns.get() | whiteRooks.get() | whiteKnights.get() | whiteBishops.get() | whiteQueens.get() | whiteKing.get());
+		blackPieces = new AtomicLong(blackPawns.get() | blackRooks.get() | blackKnights.get() | blackBishops.get() | blackQueens.get() | blackKing.get());
+		allPieces = new AtomicLong(whitePieces.get() | blackPieces.get());
+		
+		bitboards = new ArrayList<>();
+		bitboards.add(whitePawns);
+		bitboards.add(whiteRooks);
+		bitboards.add(whiteKnights);
+		bitboards.add(whiteBishops);
+		bitboards.add(whiteQueens);
+		bitboards.add(whiteKing);
+
+		bitboards.add(blackPawns);
+		bitboards.add(blackRooks);
+		bitboards.add(blackKnights);
+		bitboards.add(blackBishops);
+		bitboards.add(blackQueens);
+		bitboards.add(blackKing);
+
+		bitboards.add(whitePieces);
+		bitboards.add(blackPieces);
+		bitboards.add(allPieces);
+	}
+	
+	public void move(String move, List<AtomicLong> bitboards) {
 		
 		/*
 		 * NOTES ABOUT MOVEMENT:
@@ -97,14 +141,18 @@ public class Board {
 					break;
 				}
 			}
-			
 			// now, we can create an ending piece long by shifting the right amount of bits for the given move
 			
 			int deltaRank = move.charAt(3) - move.charAt(1);
 			int deltaFile = move.charAt(2) - move.charAt(0);
 			
-			long endingPiece = deltaRank >= 0 ? startingPiece << (8 * deltaRank) : startingPiece >> (-8 * deltaRank);
-			endingPiece = deltaFile >= 0 ? endingPiece >> deltaFile : endingPiece << (-1 * deltaFile);
+			// '>>>' vs '>>': '>>' is a signed shift, so if the most significant bit of the long is
+			// 1, each bit that gets shifted in will be an additional 1. We want 0s to be shifted in,
+			// so we use '>>>' when shifting right. Shifting left does not matter, in fact '<<<' is 
+			// not valid syntax, because 0s are always concatenated when shifting left
+			
+			long endingPiece = deltaRank >= 0 ? startingPiece << (8 * deltaRank) : startingPiece >>> (-8 * deltaRank);
+			endingPiece = deltaFile >= 0 ? endingPiece >>> deltaFile : endingPiece << (-1 * deltaFile);
 			
 			// next, we should make a move bitboard that can be used to execute the move:
 			
@@ -151,7 +199,9 @@ public class Board {
 			allPieces.set(whitePieces.get() | blackPieces.get());
 		
 			
-			//TODO: fix bug with move a1h8 -- I think it is being caused by a sign bit being shifted in
+			// POSSIBLE IMPROVEMENTS:
+			// 1. instead of using AtomicLong we could technically do an array of primitive longs, but I think that
+			// AtomicLongs are easier and we should just stick with them until(if) it becomes a problem
 	}
 	
 	
@@ -167,89 +217,11 @@ public class Board {
 //		
 //	}
 
-	public static void main(String[] args) {
+	
 
-		List<AtomicLong> bitboards = new ArrayList<>();
-		bitboards.add(whitePawns);
-		bitboards.add(whiteRooks);
-		bitboards.add(whiteKnights);
-		bitboards.add(whiteBishops);
-		bitboards.add(whiteQueens);
-		bitboards.add(whiteKing);
-
-		bitboards.add(blackPawns);
-		bitboards.add(blackRooks);
-		bitboards.add(blackKnights);
-		bitboards.add(blackBishops);
-		bitboards.add(blackQueens);
-		bitboards.add(blackKing);
-
-		bitboards.add(whitePieces);
-		bitboards.add(blackPieces);
-		bitboards.add(allPieces);
-		
-		List<AtomicLong> whiteBitBoards = new ArrayList<>();
-		
-		whiteBitBoards.add(whitePawns);
-		whiteBitBoards.add(whiteRooks);
-		whiteBitBoards.add(whiteKnights);
-		whiteBitBoards.add(whiteBishops);
-		whiteBitBoards.add(whiteQueens);
-		whiteBitBoards.add(whiteKing);
-
-		for(AtomicLong l : bitboards) {
-			for(int i = 0; i < Long.numberOfLeadingZeros(l.get()); i++) {
-				if(i % 8 == 0) System.out.println();
-				System.out.print('0');
-			}
-			System.out.println(Long.toBinaryString(l.get()));
-			System.out.println();
-		}
-
-		move("a1h8", bitboards);
-		
-		System.out.println("AFTER MOVE:");
-		
-		for(AtomicLong l : bitboards) {
-			for(int i = 0; i < Long.numberOfLeadingZeros(l.get()); i++) {
-				System.out.print('0');
-			}
-			System.out.println(Long.toBinaryString(l.get()));
-			System.out.println();
-		}
-		
-		
-		String move = "f7e4";
-
-		int startIndex = Integer.parseInt("" + move.charAt(1)) * 8 - (move.charAt(0) - 97) - 1;
-		System.out.println(startIndex);
-
-
-		long startingPiece = 1L << startIndex;
-		for(int i = 0; i < Long.numberOfLeadingZeros((long)startingPiece); i++) {
-			System.out.print('0');
-		}
-		System.out.println(Long.toBinaryString((long)startingPiece));
-		System.out.println();
-		
-		int deltaRank = move.charAt(3) - move.charAt(1);
-		
-		long endingPiece = deltaRank >= 0 ? startingPiece << (8 * deltaRank) : startingPiece >> (-8 * deltaRank);
-
-		for(int i = 0; i < Long.numberOfLeadingZeros((long)endingPiece); i++) {
-			System.out.print('0');
-		}
-		System.out.println(Long.toBinaryString((long)endingPiece));
-		System.out.println(move.charAt(3)-move.charAt(1));
-		
-		Long test = 5L;
-		
-		System.out.println();
-		
-		// end of main
+	public List<AtomicLong>	getBitBoards() {
+		return bitboards;
 	}
-
-
 
 
 
