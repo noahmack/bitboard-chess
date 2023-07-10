@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
+import chess.data.Constants;
 import chess.graphics.PrintGraphics;
 
 public class Board {
@@ -57,8 +58,13 @@ public class Board {
 	
 	private List<AtomicLong> bitboards;
 	
+	private int moveNum;
+	
 	// default constructor: generates a board with standard starting position
 	public Board() {
+		
+		moveNum = 0;
+		
 		whitePawns = new AtomicLong(0x000000000000FF00L);
 		whiteRooks = new AtomicLong(0x0000000000000081L);
 		whiteKnights = new AtomicLong(0x0000000000000042L);
@@ -95,6 +101,85 @@ public class Board {
 		bitboards.add(whitePieces);
 		bitboards.add(blackPieces);
 		bitboards.add(allPieces);
+	}
+	
+	public boolean isLegal(String move, List<AtomicLong> bitboards, AtomicLong startingPieceBitboard, AtomicLong endingPieceBitboard, boolean isCapture) {
+		
+		// When determining whether or not a move is legal in a game of chess, there are many, many things that need
+		// to be checked. Things like if pieces are in the way, whether the move puts your king in check, or even
+		// just moving a piece in a way that it is not allowed to be moved. Before we check these things though, we
+		// need to determine what type of piece is moving. For this, we can use the indexOf method on bitboards
+		// to find the position of the startingPieceBitboard
+		
+		int pieceType = bitboards.indexOf(startingPieceBitboard);
+		
+		// There's a lot of work ahead of us, but we have to choose somewhere to start, so let's just start
+		// with the simple pawn.
+		
+		// oh, and before I forget, let's make a boolean to determine if the moving piece is white or black.
+		
+		boolean isWhite = (pieceType & whitePieces.get()) == pieceType? true : false;
+		
+		// white moves on even moveNum, black moves on odd
+		
+		if(isWhite && moveNum % 2 != 0) return false;
+		if(!isWhite && moveNum % 2 == 0) return false;
+		
+		// our first legal check is done! Only everything left to go...
+		// let's move on with the pawns.
+		
+		if(pieceType == Constants.WHITE_PAWNS || pieceType == Constants.BLACK_PAWNS) {
+			// The first thing we should do for the pawn is find a way to determine whether this is the pawn's first
+			// move or not. This determines if the pawn can move 2 squares or just one square.
+			// This is easy, because we can just check if the rank of the first square is a 2 or not
+			// since that is where pawns start on the board (rank 7 if black pawn)
+			
+			boolean firstMove = (isWhite && move.charAt(1) == '2' || !isWhite && move.charAt(1) == '7')? true : false;
+			
+			// next, an easy check is if the ending file of the move is more than 1 away from the starting file.
+			// a pawn can never move in this way, so if it is true than the move is illegal.
+			
+			if(Math.abs(move.charAt(0) - move.charAt(2)) > 1) return false;
+			
+			// going along with that rule, we can also check if the file changes and the move isn't a capture,
+			// because pawns can only change files if the move is a capture.
+			
+			if(move.charAt(0) != move.charAt(2) && !isCapture) return false;
+			
+			// we can also check the inverse of this, to ensure that the pawn cannot make a capture on the same file
+			
+			if(move.charAt(0) == move.charAt(2) && isCapture) return false;
+			
+			// next, we can use our firstMove boolean to check if the pawn tries to move 2 squares later
+			// than its first move
+			
+			if(Math.abs(move.charAt(1) - move.charAt(3)) == 2 && !firstMove) return false;
+			
+			// while we are at it, let's check to make sure that pawns are never moving more than 2 squares
+
+			if(Math.abs(move.charAt(1) - move.charAt(3)) > 2) return false;
+
+			// the last thing (until en passant) that we need to check is whether or not the pawn is trying to
+			// move to a square that is already occupied by its own piece
+
+			if(isCapture) {
+				if(bitboards.indexOf(endingPieceBitboard) <= Constants.WHITE_KING && isWhite) {
+					return false;
+				} else if(bitboards.indexOf(endingPieceBitboard) > Constants.WHITE_KING && !isWhite) {
+					return false;
+				}
+			}
+
+		}
+
+		
+		
+		// TODO: fix bug that is the current GameController main
+		
+		
+		
+		
+		return true;
 	}
 	
 	public void move(String move, List<AtomicLong> bitboards) {
@@ -169,6 +254,7 @@ public class Board {
 			// we must also update the bitboard of the captured piece
 			
 			AtomicLong endingPieceBitboard = null;
+			boolean isCapture = false;
 			
 			for(AtomicLong bitboard : bitboards) {
 				if((bitboard.get() & endingPiece) != 0) {
@@ -178,6 +264,22 @@ public class Board {
 			}
 			
 			// if the move results in a capture, the endingPieceBitboard will not be null.
+			
+			if(endingPieceBitboard != null) {
+				isCapture = true;
+			}
+			
+			// now that we have all the data about the move though, we need to check if the
+			// move is legal before we actually manipulate any bitboards:
+			
+			if(!isLegal(move, bitboards, startingPieceBitboard, endingPieceBitboard, isCapture)) {
+				System.out.println("Illegal move!");
+				return;
+			}
+			
+			// if we make it to here, we know that the move is legal. So, we can pick up where we
+			// left off.
+			
 			// in order to remove the captured piece from its bitboard, we can use a bitwise
 			// and with the complement of the endPiece position bitboard
 			
@@ -191,7 +293,10 @@ public class Board {
 			
 			startingPieceBitboard.set(moveBitboard ^ startingPieceBitboard.get());
 			
-			// the last thing we need to do to complete the move is to update the encompassing
+			// now that our piece has officially moved, we can increment the move counter
+			moveNum++;
+			
+			// the last things we need to do to complete the move is to update the encompassing
 			// bitboards. This can be done with the bitwise OR operation
 			
 			whitePieces.set(whitePawns.get() | whiteRooks.get() | whiteKnights.get() | whiteBishops.get() | whiteQueens.get() | whiteKing.get());

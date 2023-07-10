@@ -23,6 +23,7 @@ public class GameController {
 		PrintGraphics.printBoard(bitboards);
 		
 		game.move("e2e4", bitboards);
+		game.move("e7e5", bitboards);
 		
 		System.out.println();
 		
