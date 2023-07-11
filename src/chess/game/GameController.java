@@ -2,6 +2,7 @@ package chess.game;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Scanner;
 import java.util.concurrent.atomic.AtomicLong;
 
 import chess.graphics.PrintGraphics;
@@ -15,19 +16,25 @@ public class GameController {
 		Board game = new Board();
 		
 		List<AtomicLong> bitboards = game.getBitBoards();
-		
-		for(AtomicLong l : bitboards) {
-			PrintGraphics.printBitBoard(l);
-		}
 
 		PrintGraphics.printBoard(bitboards);
 		
-		game.move("e2e4", bitboards);
-		game.move("e7e5", bitboards);
+		String userInput = "";
+		Scanner scnr = new Scanner(System.in);
 		
-		System.out.println();
-		
-		PrintGraphics.printBoard(bitboards);
+		while(!userInput.equals("end")) {
+			
+			System.out.println((game.getMoveNum() % 2 == 0? "White's" : "Black's") + " Move.");
+			System.out.println("Enter move:");
+			userInput = scnr.nextLine();
+			if(userInput.equals("end")) continue;
+			
+			
+			game.move(userInput, bitboards);
+			PrintGraphics.printBoard(bitboards);
+			System.out.println();
+			
+		}
 		
 		
 		
