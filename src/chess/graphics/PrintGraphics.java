@@ -3,7 +3,7 @@ package chess.graphics;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
-import chess.data.Constants;
+import chess.util.Constants;
 
 public class PrintGraphics {
 

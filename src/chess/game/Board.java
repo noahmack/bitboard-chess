@@ -4,9 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
-import chess.data.Constants;
-import chess.data.ShortBitboard;
-import chess.graphics.PrintGraphics;
+import chess.util.Constants;
+import chess.util.ShortBitboard;
 
 public class Board {
 

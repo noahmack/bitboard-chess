@@ -1,4 +1,4 @@
-package chess.data;
+package chess.util;
 
 public class ShortBitboard {
 
