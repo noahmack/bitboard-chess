@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
 import chess.util.Constants;
-import chess.util.ShortBitboard;
+import chess.util.EnPassantBitboard;
 
 public class Board {
 
@@ -61,7 +61,7 @@ public class Board {
 	private AtomicLong allPieces;
 
 	// special bitboards
-	private ShortBitboard pawnsHaveMoved;	// [15..8] = black pawns, [7..0] = white pawns
+	private EnPassantBitboard pawnsHaveMovedTwo;	// [15..8] = black pawns, [7..0] = white pawns
 	
 	private List<AtomicLong> bitboards;
 
@@ -90,7 +90,7 @@ public class Board {
 		blackPieces = new AtomicLong(blackPawns.get() | blackRooks.get() | blackKnights.get() | blackBishops.get() | blackQueens.get() | blackKing.get());
 		allPieces = new AtomicLong(whitePieces.get() | blackPieces.get());
 		
-		pawnsHaveMoved = new ShortBitboard();
+		pawnsHaveMovedTwo = new EnPassantBitboard();
 
 		bitboards = new ArrayList<>();
 		bitboards.add(whitePawns);
@@ -153,6 +153,70 @@ public class Board {
 
 			// going along with that rule, we can also check if the file changes and the move isn't a capture,
 			// because pawns can only change files if the move is a capture.
+			// NOPE!!!! WHAT ABOUT EN PASSANT? relax bro, we can just move the en passant check up here.
+
+			// en passant time.
+			// for en passant, we should be able to check if the pawn has an opposite color pawn immediately
+			// to the left or right of it. If so, we can then check if the moving pawn is in the rank that
+			// allows for en passant(in fact, we should actually check this first). 
+			// The last thing we need to know is where the pawn under attack was on it's previous move.
+			// unless...what if we make a new bitboard? A pawnsHaveMovedTwo bitboard! Using a short, we can create
+			// a bitboard with a width of 16 and update it with pawns that have moved two squares on their first move! 
+			// Then, we can check if the pawn has just moved 2 or not and we can accurately determine whether 
+			// en passant is a legal move. We also need to keep track of whether this is the pawn's first move,
+			// because that is the only time that en passant is allowed.
+			// Ok, turns out AtomicShort doesn't exist alongside AtomicLong for some reason. This should not be a big
+			// deal, because we can simply create our own EnPassantBitboard class. A bonus of making our own class
+			// is we can add a history component to keep track of the previous configuration of the board!
+
+			// now, using all of this information, we can create an algorithm to detect en passant:
+
+			// let's start with white's turn
+			if(move.charAt(1) == '5' && move.charAt(3) == '6' && isWhite && (Math.abs(move.charAt(0) - move.charAt(2)) == 1)) {
+				long rightSquareBitboard = startSquare >>> 1; // technically never need unsigned shift here but will use anyway because it's rare lol
+				long leftSquareBitboard = startSquare << 1;
+				if(this.hasBlackPiece(rightSquareBitboard) && move.charAt(2) - move.charAt(0) == 1) {
+					short rightPawnBitboard = (short)(1 << (move.charAt(2) - 97 + 7));
+					if((rightPawnBitboard & pawnsHaveMovedTwo.get()) != 0 
+							&& (rightPawnBitboard & pawnsHaveMovedTwo.getPrevious()) == 0) {
+						// since the move method won't pick up this capture
+						return true;
+					} else {
+						return false;
+					}
+				} else if(this.hasBlackPiece(leftSquareBitboard) && move.charAt(2) - move.charAt(0) == -1) {
+					short leftPawnBitboard = (short)(1 << (move.charAt(2) - 97 + 9));
+					if((leftPawnBitboard & pawnsHaveMovedTwo.get()) != 0
+							&& (leftPawnBitboard & pawnsHaveMovedTwo.getPrevious()) == 0) {
+						return true;
+					} else {
+						return false;
+					}
+				}
+			}
+			if(move.charAt(1) == '4' && move.charAt(3) == '3' && !isWhite && (Math.abs(move.charAt(0) - move.charAt(2)) == 1)) {
+				long rightSquareBitboard = startingPieceBitboard.get() >>> 1; // technically never need unsigned shift here but will use anyway
+					long leftSquareBitboard = startingPieceBitboard.get() << 1;
+					if(this.hasWhitePiece(rightSquareBitboard) && move.charAt(2) - move.charAt(0) == 1) {
+						short rightPawnBitboard = (short)(1 << (move.charAt(2) - 97 - 1));
+						if((rightPawnBitboard & pawnsHaveMovedTwo.get()) != 0 
+								&& (rightPawnBitboard & pawnsHaveMovedTwo.getPrevious()) == 0) {
+							return true;
+						} else {
+							return false;
+						}
+					} else if(this.hasWhitePiece(leftSquareBitboard) && move.charAt(2) - move.charAt(0) == -1) {
+						short leftPawnBitboard = (short)(1 << (move.charAt(2) - 97 + 1));
+						if((leftPawnBitboard & pawnsHaveMovedTwo.get()) != 0
+								&& (leftPawnBitboard & pawnsHaveMovedTwo.getPrevious()) == 0) {
+							return true;
+						} else {
+							return false;
+						}
+					}
+			}
+
+			// ok, now that we have checked for en passant we can continue with these checks
 
 			if(move.charAt(0) != move.charAt(2) && !isCapture) return false;
 
@@ -168,8 +232,12 @@ public class Board {
 			// while we are at it, let's check to make sure that pawns are never moving more than 2 squares
 
 			if(Math.abs(move.charAt(1) - move.charAt(3)) > 2) return false;
+			
+			// and let's also make sure pawns can't move backwards
+			
+			if(move.charAt(3) - move.charAt(1) < 1 && isWhite || move.charAt(3) - move.charAt(1) > -1 && !isWhite) return false;
 
-			// the last thing (until en passant) that we need to check is whether or not the pawn is trying to
+			// the last thing that we need to check is whether or not the pawn is trying to
 			// move to a square that is already occupied by its own piece
 
 			if(isCapture) {
@@ -180,28 +248,16 @@ public class Board {
 				}
 			}
 			
-			// en passant time.
-			// for en passant, we should be able to check if the pawn has an opposite color pawn immediately
-			// to the left or right of it. If so, we can then check if the moving pawn is in the rank that
-			// allows for en passant. The last thing we need to know is where the pawn was on it's previous move.
-			// unless...what if we make a new bitboard? A pawnsHaveMoved bitboard! Using a short, we can create
-			// a bitboard with a width of 16 and update it with pawns that have moved already! Then, we can check
-			// if the pawn has previously moved or not and we can accurately determine whether en passant is a legal
-			// move.
-			// Ok, turns out AtomicShort doesn't exist alongside AtomicLong for some reason. This should not be a big
-			// deal, because we can simply create our own ShortBitboard class.
-
-			// TODO: en passant
-			
 			
 			
 			// Now we know that the move is definitely legal, but there's still some bookkeeping left to do:
 			
-			// let's set our pawnsMoved bitboard to an accurate state:
-			int pawnMoveIndex = 0;
-			if(move.charAt(1) == '2' && isWhite || move.charAt(1) == '7' && !isWhite) {	
-				pawnMoveIndex = 1 << (7 - (move.charAt(0) - 97) + (isWhite? 0 : 8));
-				pawnsHaveMoved.setBitboard((short)(pawnsHaveMoved.get() | pawnMoveIndex));
+			// let's set our pawnsMovedTwo bitboard to an accurate state:
+			int pawnMoveIndexTwo = 0;
+			if(move.charAt(1) == '2' && move.charAt(3) == '4' && isWhite 
+			|| move.charAt(1) == '7' && move.charAt(3) == '5' && !isWhite) {	
+				pawnMoveIndexTwo = 1 << (7 - (move.charAt(0) - 97) + (isWhite? 0 : 8));
+				pawnsHaveMovedTwo.setBitboard((short)(pawnsHaveMovedTwo.get() | pawnMoveIndexTwo));
 			}
 			
 			
@@ -369,6 +425,20 @@ public class Board {
 
 		long startingPiece = 1L << startIndex;
 		return startingPiece;
+	}
+	
+	private boolean hasBlackPiece(long bitboard) {
+		for(int i = Constants.BLACK_PAWNS; i <= Constants.BLACK_KING; i++) {
+			if((bitboard & this.bitboards.get(i).get()) != 0) return true;
+		}
+		return false;
+	}
+	
+	private boolean hasWhitePiece(long bitboard) {
+		for(int i = 0; i <= Constants.WHITE_KING; i++) {
+			if((bitboard & this.bitboards.get(i).get()) != 0) return true;
+		}
+		return false;
 	}
 	
 	/*
